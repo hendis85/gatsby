@@ -16,13 +16,13 @@ export interface IStaticImageProps extends Omit<GatsbyImageProps, "image"> {
   maxHeight?: number
   sizes?: string
   quality?: number
-  transformOptions: {
+  transformOptions?: {
     fit?: Fit
   }
   jpgOptions?: Record<string, unknown>
   pngOptions?: Record<string, unknown>
   webpOptions?: Record<string, unknown>
-  blurredOptions: Record<string, unknown>
+  blurredOptions?: Record<string, unknown>
 }
 
 // These values are added by Babel. Do not add them manually
@@ -38,6 +38,7 @@ export function _getStaticImage(
     src,
     __imageData: imageData,
     __error,
+    // We extract these because they're not meant to be passed-down to GatsbyImage
     /* eslint-disable @typescript-eslint/no-unused-vars */
     width,
     maxWidth,
@@ -81,19 +82,19 @@ const checkDimensionProps: PropTypes.Validator<number> = (
   propName: keyof IStaticImageProps & IPrivateProps,
   ...rest
 ) => {
-  if (props.layout === `fluid` || props.layout === `constrained`) {
-    if (propName === `maxWidth` && !props[propName]) {
-      return new Error(
-        `The prop "${propName}" is required when layout is "${props.layout}"`
-      )
-    }
-    if ((propName === `width` || propName === `height`) && props[propName]) {
-      return new Error(
-        `"${propName}" ${props[propName]} may not be passed when layout is "${props.layout}"`
-      )
-    }
+  if (
+    props.layout !== `fixed` &&
+    (propName === `width` || propName === `height`) &&
+    props[propName]
+  ) {
+    return new Error(
+      `"${propName}" ${props[propName]} may not be passed when layout is "${
+        props.layout || `constrained`
+      }"`
+    )
   } else {
     if (
+      props.layout === `fixed` &&
       (propName === `maxWidth` || propName === `maxHeight`) &&
       props[propName]
     ) {
@@ -101,14 +102,11 @@ const checkDimensionProps: PropTypes.Validator<number> = (
         `"${propName}" may not be passed when layout is "${props.layout}"`
       )
     }
-    if (propName === `width` && !props[propName]) {
-      return new Error(
-        `The prop "${propName}" is required when layout is "${props.layout}"`
-      )
-    }
   }
   return PropTypes.number(props, propName, ...rest)
 }
+
+const validLayouts = new Set([`fixed`, `fluid`, `constrained`])
 
 export const propTypes = {
   src: PropTypes.string.isRequired,
@@ -118,6 +116,18 @@ export const propTypes = {
   maxHeight: checkDimensionProps,
   maxWidth: checkDimensionProps,
   sizes: PropTypes.string,
+  layout: (props: IStaticImageProps & IPrivateProps): Error | undefined => {
+    if (props.layout === undefined) {
+      return undefined
+    }
+    if (validLayouts.has(props.layout.toLowerCase())) {
+      return undefined
+    }
+
+    return new Error(
+      `Invalid value ${props.layout}" provided for prop "layout". Defaulting to "fixed". Valid values are "fixed", "fluid" or "constrained"`
+    )
+  },
 }
 
 StaticImage.displayName = `StaticImage`

@@ -175,10 +175,10 @@ export async function initialize({
   }
 
   // Setup flags
-  if (config && config.flags) {
+  if (config) {
     // TODO: this should be handled in FAST_REFRESH configuration and not be one-off here.
     if (
-      config.flags.FAST_REFRESH &&
+      config.flags?.FAST_REFRESH &&
       process.env.GATSBY_HOT_LOADER &&
       process.env.GATSBY_HOT_LOADER !== `fast-refresh`
     ) {
@@ -186,13 +186,14 @@ export async function initialize({
       reporter.warn(
         reporter.stripIndent(`
           Both FAST_REFRESH gatsby-config flag and GATSBY_HOT_LOADER environment variable is used with conflicting setting ("${process.env.GATSBY_HOT_LOADER}").
-          
+
           Will use react-hot-loader.
-          
+
           To use Fast Refresh either do not use GATSBY_HOT_LOADER environment variable or set it to "fast-refresh".
         `)
       )
     }
+
     const availableFlags = require(`../utils/flags`).default
     // Get flags
     const { enabledConfigFlags, unknownFlagMessage, message } = handleFlags(
@@ -220,12 +221,24 @@ export async function initialize({
     })
 
     // Track the usage of config.flags
-    if (enabledConfigFlags.length > 0) {
+    if (config.flags) {
       telemetry.trackFeatureIsUsed(`ConfigFlags`)
     }
   }
 
   process.env.GATSBY_HOT_LOADER = getReactHotLoaderStrategy()
+
+  // TODO: figure out proper way of disabling loading indicator
+  // for now GATSBY_QUERY_ON_DEMAND_LOADING_INDICATOR=false gatsby develop
+  // will work, but we don't want to force users into using env vars
+  if (
+    process.env.GATSBY_EXPERIMENTAL_QUERY_ON_DEMAND &&
+    !process.env.GATSBY_QUERY_ON_DEMAND_LOADING_INDICATOR
+  ) {
+    // if query on demand is enabled and GATSBY_QUERY_ON_DEMAND_LOADING_INDICATOR was not set at all
+    // enable loading indicator
+    process.env.GATSBY_QUERY_ON_DEMAND_LOADING_INDICATOR = `true`
+  }
 
   // theme gatsby configs can be functions or objects
   if (config && config.__experimentalThemes) {
